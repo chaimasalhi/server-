@@ -693,16 +693,12 @@ function connectMQTT() {
 }
 
 // ─────────────────────────────────────────────
-//  FACE-API OPTIMISÉ pour Render
+//  FACE-API OPTIMISÉ pour Render (sans WASM_HAS_SIMD)
 // ─────────────────────────────────────────────
 async function loadFaceModels() {
   await tf.setBackend('wasm');
   await tf.ready();
-  // Désactiver SIMD pour économiser la RAM (moins de bloat)
-  if (process.env.NODE_ENV !== 'development') {
-    tf.env().set('WASM_HAS_SIMD', false);
-  }
-  log('INFO', '✅ TensorFlow WASM prêt (SIMD désactivé)');
+  log('INFO', '✅ TensorFlow WASM prêt');
   // Chargement séquentiel
   await faceapi.nets.ssdMobilenetv1.loadFromDisk(CONFIG.modelsDir);
   await faceapi.nets.faceLandmark68Net.loadFromDisk(CONFIG.modelsDir);
