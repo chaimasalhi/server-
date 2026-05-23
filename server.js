@@ -3,8 +3,22 @@
 // ============================================================
 //  IoT Backend — Salle Réseau v12.1 + FCM Push Notifications
 // ============================================================
+
+// ───────────────────────────────────────────────────────────
+//  Firebase Admin (pour les notifications push)
+//  Utilise la variable d'environnement FIREBASE_SERVICE_ACCOUNT
+//  ou un fichier local en développement
+// ───────────────────────────────────────────────────────────
 const admin = require('firebase-admin');
-const serviceAccount = require('./ommp-f8137-firebase-adminsdk-fbsvc-edc6a63433.json');
+let serviceAccount;
+
+if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+  // En production (Render) : utiliser la variable d'environnement
+  serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+} else {
+  // En développement local : utiliser le fichier JSON (ignoré par git)
+  serviceAccount = require('./ommp-f8137-firebase-adminsdk-fbsvc-edc6a63433.json');
+}
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
@@ -309,7 +323,7 @@ let lastPredAlertTs = 0;
 let wss = null; // initialized in start()
 
 // ============================================================
-//  NOTIFICATION PUSH FCM (AJOUT)
+//  NOTIFICATION PUSH FCM
 // ============================================================
 async function sendPushNotification(fcmToken, title, body, data = {}) {
   if (!fcmToken) return;
@@ -461,7 +475,7 @@ async function saveAlert(sensor, niveau, message, source = 'mesure', valeur = nu
       },
     });
 
-    // ENVOI DE LA NOTIFICATION PUSH (AJOUT)
+    // ENVOI DE LA NOTIFICATION PUSH
     if (global.fcmToken) {
       await sendPushNotification(global.fcmToken, `Alerte ${niveau}`, message, { sensor });
     }
@@ -1176,7 +1190,7 @@ app.use((req, _res, next) => {
 });
 
 // ============================================================
-//  ROUTE POUR RECEVOIR LE TOKEN FCM (AJOUT)
+//  ROUTE POUR RECEVOIR LE TOKEN FCM
 // ============================================================
 app.post('/api/save-token', express.json(), (req, res) => {
   const { token } = req.body;
@@ -1433,10 +1447,412 @@ app.get('/logs', requireApiKey, async (req, res) => {
   }
 });
 
-// Routes DB (temp, humid, gaz, eau, alerts, access, photos, encodings)
-// (inchangées, trop longues pour être répétées, mais elles sont présentes dans votre fichier original)
-// Pour gagner de la place, je les omets ici. Vous devez conserver toutes les routes /db/*, /api/alertes, etc. de votre version originale.
-// Elles n'ont pas été modifiées. Veillez à les inclure dans votre fichier final.
+// ============================================================
+//  ROUTES DB (temp, humid, gaz, eau, alerts, access, photos, encodings)
+// ============================================================
+app.get('/db/temperatures', requireApiKey, async (_, res) => {
+  try {
+    res.json(await TempReading.find().sort({ timestamp: -1 }).limit(50));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+app.get('/db/temperatures/anomalies', requireApiKey, async (_, res) => {
+  try {
+    res.json(await TempReading.find({ classification: { $ne: 'NORMAL' } }).sort({ timestamp: -1 }).limit(50));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+app.get('/db/temperatures/danger', requireApiKey, async (_, res) => {
+  try {
+    res.json(await TempReading.find({ classification: 'DANGER' }).sort({ timestamp: -1 }).limit(50));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+app.get('/db/temperatures/warning', requireApiKey, async (_, res) => {
+  try {
+    res.json(await TempReading.find({ classification: 'WARNING' }).sort({ timestamp: -1 }).limit(50));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+app.get('/db/temperatures/predictions', requireApiKey, async (_, res) => {
+  try {
+    res.json(await TempReading.find({ prediction_alert: { $ne: 'NORMAL' } }).sort({ timestamp: -1 }).limit(50));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+app.get('/db/humidites', requireApiKey, async (_, res) => {
+  try {
+    res.json(await HumidReading.find().sort({ timestamp: -1 }).limit(50));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+app.get('/db/humidites/anomalies', requireApiKey, async (_, res) => {
+  try {
+    res.json(await HumidReading.find({ classification: { $ne: 'NORMAL' } }).sort({ timestamp: -1 }).limit(50));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+app.get('/db/humidites/danger', requireApiKey, async (_, res) => {
+  try {
+    res.json(await HumidReading.find({ classification: 'DANGER' }).sort({ timestamp: -1 }).limit(50));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+app.get('/db/humidites/warning', requireApiKey, async (_, res) => {
+  try {
+    res.json(await HumidReading.find({ classification: 'WARNING' }).sort({ timestamp: -1 }).limit(50));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+app.get('/db/gaz', requireApiKey, async (_, res) => {
+  try {
+    res.json(await GazReading.find().sort({ timestamp: -1 }).limit(50));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+app.get('/db/gaz/anomalies', requireApiKey, async (_, res) => {
+  try {
+    res.json(await GazReading.find({ classification: { $ne: 'NORMAL' } }).sort({ timestamp: -1 }).limit(50));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+app.get('/db/gaz/danger', requireApiKey, async (_, res) => {
+  try {
+    res.json(await GazReading.find({ classification: 'DANGER' }).sort({ timestamp: -1 }).limit(50));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+app.get('/db/gaz/warning', requireApiKey, async (_, res) => {
+  try {
+    res.json(await GazReading.find({ classification: 'WARNING' }).sort({ timestamp: -1 }).limit(50));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+app.get('/db/eaux', requireApiKey, async (_, res) => {
+  try {
+    res.json(await EauReading.find().sort({ timestamp: -1 }).limit(50));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+app.get('/db/eaux/anomalies', requireApiKey, async (_, res) => {
+  try {
+    res.json(await EauReading.find({ classification: { $ne: 'NORMAL' } }).sort({ timestamp: -1 }).limit(50));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+app.get('/db/eaux/danger', requireApiKey, async (_, res) => {
+  try {
+    res.json(await EauReading.find({ classification: 'DANGER' }).sort({ timestamp: -1 }).limit(50));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+app.get('/db/eaux/warning', requireApiKey, async (_, res) => {
+  try {
+    res.json(await EauReading.find({ classification: 'WARNING' }).sort({ timestamp: -1 }).limit(50));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+app.get('/db/eaux/pluie', requireApiKey, async (_, res) => {
+  try {
+    res.json(await EauReading.find({ raining: true }).sort({ timestamp: -1 }).limit(50));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+app.get('/db/alerts', requireApiKey, async (_, res) => {
+  try {
+    res.json(await Alert.find().sort({ timestamp: -1 }).limit(50));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+app.get('/db/alerts/danger', requireApiKey, async (_, res) => {
+  try {
+    res.json(await Alert.find({ niveau: 'DANGER' }).sort({ timestamp: -1 }).limit(50));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+app.get('/db/alerts/warning', requireApiKey, async (_, res) => {
+  try {
+    res.json(await Alert.find({ niveau: 'WARNING' }).sort({ timestamp: -1 }).limit(50));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+app.get('/db/alerts/info', requireApiKey, async (_, res) => {
+  try {
+    res.json(await Alert.find({ niveau: 'INFO' }).sort({ timestamp: -1 }).limit(50));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+app.get('/db/alerts/mesure', requireApiKey, async (_, res) => {
+  try {
+    res.json(await Alert.find({ source: 'mesure' }).sort({ timestamp: -1 }).limit(50));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+app.get('/db/alerts/prediction', requireApiKey, async (_, res) => {
+  try {
+    res.json(await Alert.find({ source: 'prediction' }).sort({ timestamp: -1 }).limit(50));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+app.get('/db/alerts/:sensor', requireApiKey, async (req, res) => {
+  try {
+    res.json(await Alert.find({ sensor: req.params.sensor }).sort({ timestamp: -1 }).limit(50));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+app.get('/db/accesses', requireApiKey, async (_, res) => {
+  try {
+    res.json(await Access.find().sort({ timestamp: -1 }).limit(50));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+app.get('/db/accesses/autorises', requireApiKey, async (_, res) => {
+  try {
+    res.json(await Access.find({ authorized: true }).sort({ timestamp: -1 }).limit(50));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+app.get('/db/accesses/refuses', requireApiKey, async (_, res) => {
+  try {
+    res.json(await Access.find({ authorized: false }).sort({ timestamp: -1 }).limit(50));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+app.get('/db/accesses/double', requireApiKey, async (_, res) => {
+  try {
+    res.json(await Access.find({ decision: 'DOUBLE_AUTORISÉ' }).sort({ timestamp: -1 }).limit(50));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+app.get('/db/accesses/fallback', requireApiKey, async (_, res) => {
+  try {
+    res.json(await Access.find({ fallback: true }).sort({ timestamp: -1 }).limit(50));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+app.get('/db/accesses/visage-refuse', requireApiKey, async (_, res) => {
+  try {
+    res.json(await Access.find({ decision: 'REFUSÉ_VISAGE' }).sort({ timestamp: -1 }).limit(50));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+app.get('/db/photos', requireApiKey, async (_, res) => {
+  try {
+    const photos = await AccessPhoto.find({}, { photo_buffer: 0 }).sort({ timestamp: -1 }).limit(50);
+    res.json(photos);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+app.get('/db/photos/:access_id', requireApiKey, async (req, res) => {
+  try {
+    const photo = await AccessPhoto.findOne({ access_id: req.params.access_id });
+    if (!photo) return res.status(404).json({ error: 'Photo non trouvée' });
+    res.set('Content-Type', photo.mime_type);
+    res.set('Content-Disposition', `inline; filename="access_${photo.access_id}.jpg"`);
+    res.send(photo.photo_buffer);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+app.get('/db/photos/uid/:uid', requireApiKey, async (req, res) => {
+  try {
+    const photos = await AccessPhoto.find({ uid: req.params.uid }, { photo_buffer: 0 }).sort({ timestamp: -1 }).limit(20);
+    res.json(photos);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+app.get('/db/encodings', requireApiKey, async (_, res) => {
+  try {
+    const encs = await FaceEncoding.find({}, { descriptors: 0 });
+    res.json(encs);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/faces/reload', requireApiKey, async (_, res) => {
+  try {
+    log('INFO', '🔄 Rechargement forcé encodages depuis disque...');
+    const labeled = await loadAuthorizedFaces();
+    if (labeled.length > 0) {
+      await saveEncodingsToDB(labeled);
+      app.locals.authorizedFaces = labeled;
+    }
+    res.json({
+      status: 'ok',
+      message: `✅ ${labeled.length} personne(s) rechargée(s) et sauvegardées en DB`,
+      persons: labeled.map(l => ({ name: l.label, descriptors: l.descriptors.length })),
+    });
+  } catch (e) {
+    log('ERROR', `/faces/reload : ${e.message}`);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ============================================================
+//  ROUTES API FLUTTER — publiques
+// ============================================================
+app.get('/api/alertes', async (req, res) => {
+  try {
+    const limite = parseInt(req.query.limite) || 50;
+    const type = req.query.type || null;
+    const resolue = req.query.resolue !== undefined ? req.query.resolue === 'true' : null;
+    const filter = {};
+    if (type) filter.sensor = type;
+    if (resolue !== null) filter.resolue = resolue;
+    const alertes = await Alert.find(filter).sort({ timestamp: -1 }).limit(limite).lean();
+    const normalized = alertes.map(a => ({
+      _id: a._id.toString(),
+      type: a.sensor,
+      niveau: a.niveau,
+      source: a.source,
+      message: a.message,
+      valeur: a.valeur ?? null,
+      seuil: a.seuil ?? null,
+      unit: a.unit ?? null,
+      horodatage: a.timestamp,
+      resolue: a.resolue ?? false,
+      minutes_avant: a.minutes_avant ?? null,
+      confidence: a.confidence ?? null,
+    }));
+    res.json({ alertes: normalized, total: normalized.length });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/alertes/stats', async (req, res) => {
+  try {
+    const now = new Date();
+    const il24h = new Date(now - 24 * 60 * 60 * 1000);
+    const [total, nonResolues, critiques, dernieres24h] = await Promise.all([
+      Alert.countDocuments(),
+      Alert.countDocuments({ resolue: { $ne: true }, niveau: { $in: ['DANGER', 'WARNING'] } }),
+      Alert.countDocuments({ niveau: 'DANGER', resolue: { $ne: true } }),
+      Alert.countDocuments({ timestamp: { $gte: il24h } }),
+    ]);
+    res.json({ total, nonResolues, critiques, dernieres24h });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/alertes/:id/resoudre', async (req, res) => {
+  try {
+    const alerte = await Alert.findByIdAndUpdate(req.params.id, { resolue: true, resolue_at: new Date() }, { new: true });
+    if (!alerte) return res.status(404).json({ error: 'Alerte non trouvée' });
+    res.json({ success: true, alerte });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/journaux', async (req, res) => {
+  try {
+    const limite = parseInt(req.query.limite) || 50;
+    const statut = req.query.statut || null;
+    const filter = {};
+    if (statut === 'autorise') filter.authorized = true;
+    if (statut === 'refuse') filter.authorized = false;
+    const journaux = await Access.find(filter).sort({ timestamp: -1 }).limit(limite).lean();
+    const normalized = journaux.map(j => ({
+      _id: j._id.toString(),
+      uid: j.uid,
+      prenom: j.face_name?.split(' ')[0] ?? 'Inconnu',
+      nom: j.face_name?.split(' ').slice(1).join(' ') ?? '',
+      statut: j.authorized ? 'autorise' : 'refuse',
+      typeAcces: j.decision ?? 'RFID',
+      decision: j.decision,
+      fallback: j.fallback,
+      has_photo: j.has_photo,
+      horodatage: j.timestamp,
+    }));
+    res.json({ journaux: normalized, total: normalized.length });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/journaux/stats', async (req, res) => {
+  try {
+    const now = new Date();
+    const il24h = new Date(now - 24 * 60 * 60 * 1000);
+    const [total, autorises, refuses, dernieres24h] = await Promise.all([
+      Access.countDocuments(),
+      Access.countDocuments({ authorized: true }),
+      Access.countDocuments({ authorized: false }),
+      Access.countDocuments({ timestamp: { $gte: il24h } }),
+    ]);
+    res.json({ total, autorises, refuse: refuses, dernieres24h });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/rfid', async (req, res) => {
+  try {
+    const rfids = await Access.find({ authorized: true }).distinct('uid');
+    res.json({ rfids: rfids.map(uid => ({ uid, actif: true })) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/historique', async (req, res) => {
+  try {
+    const limite = parseInt(req.query.limite) || 200;
+    const data = await TempReading.find().sort({ timestamp: -1 }).limit(limite).lean();
+    res.json({ historique: data, total: data.length });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/historique/stats', async (req, res) => {
+  try {
+    const [total, danger, warning] = await Promise.all([
+      TempReading.countDocuments(),
+      TempReading.countDocuments({ classification: 'DANGER' }),
+      TempReading.countDocuments({ classification: 'WARNING' }),
+    ]);
+    res.json({ total, danger, warning, normal: total - danger - warning });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // ── 404 ──
 app.use((req, res) => res.status(404).json({ error: `Route inconnue : ${req.method} ${req.path}` }));
@@ -1476,9 +1892,8 @@ async function start() {
   httpServer.listen(CONFIG.port, '0.0.0.0', () => {
     log('INFO', `\n🚀 Serveur IoT Salle Réseau v12.1 — port ${CONFIG.port}`);
     log('INFO', `🔒 Sécurité : HMAC-SHA256=ON | API_KEY=ON | TLS_MQTT=ON`);
-    log('INFO', `🔌 WebSocket : ws://0.0.0.0:${CONFIG.port}  ← NOUVEAU v12.1`);
+    log('INFO', `🔌 WebSocket : ws://0.0.0.0:${CONFIG.port}`);
     log('INFO', `\n📱 Route push : POST /api/save-token (FCM token)`);
-    log('INFO', `📱 Les notifications push seront envoyées lors des alertes.`);
   });
 
   const shutdown = async (sig) => {
