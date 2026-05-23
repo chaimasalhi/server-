@@ -12,11 +12,11 @@
 const admin = require('firebase-admin');
 let serviceAccount;
 
+// Utiliser la variable d'environnement FIREBASE_SERVICE_ACCOUNT (Render) ou le fichier local (développement)
 if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-  // En production (Render) : utiliser la variable d'environnement
   serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
 } else {
-  // En développement local : utiliser le fichier JSON (ignoré par git)
+  // Développement local : utiliser le fichier JSON (ne pas committer)
   serviceAccount = require('./ommp-f8137-firebase-adminsdk-fbsvc-edc6a63433.json');
 }
 
