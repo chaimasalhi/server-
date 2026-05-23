@@ -1,18 +1,31 @@
 const admin = require('firebase-admin');
-const fs = require('fs');
 
 function initFirebaseAdmin() {
   if (admin.apps.length) return admin;
 
-  const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH;
-  if (!serviceAccountPath) {
-    throw new Error('FIREBASE_SERVICE_ACCOUNT_PATH manquant (chemin du JSON service account Firebase)');
-  }
-  if (!fs.existsSync(serviceAccountPath)) {
-    throw new Error(`Fichier service account introuvable: ${serviceAccountPath}`);
+  // 1. Récupérer les variables d'environnement
+  const projectId = process.env.FIREBASE_PROJECT_ID;
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+  let privateKey = process.env.FIREBASE_PRIVATE_KEY;
+
+  // 2. Vérifier qu'elles existent
+  if (!projectId || !clientEmail || !privateKey) {
+    throw new Error(
+      'Variables Firebase manquantes : FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY'
+    );
   }
 
-  const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
+  // 3. Corriger les retours à la ligne dans la clé privée
+  privateKey = privateKey.replace(/\\n/g, '\n');
+
+  // 4. Construire l'objet service account
+  const serviceAccount = {
+    projectId,
+    clientEmail,
+    privateKey,
+  };
+
+  // 5. Initialiser Firebase Admin
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
   });
