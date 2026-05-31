@@ -12,11 +12,9 @@
 const admin = require('firebase-admin');
 let serviceAccount;
 
-// Utiliser la variable d'environnement FIREBASE_SERVICE_ACCOUNT (Render) ou le fichier local (développement)
 if (process.env.FIREBASE_SERVICE_ACCOUNT) {
   serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
 } else {
-  // Développement local : utiliser le fichier JSON (ne pas committer)
   serviceAccount = require('./ommp-f8137-firebase-adminsdk-fbsvc-edc6a63433.json');
 }
 
@@ -44,7 +42,7 @@ const { WebSocketServer, OPEN } = require('ws');
 const authRoutes = require('./routes/auth');
 const { auth, isAdmin, isAdminOrTech } = require('./config/middleware/authMiddleware');
 const chatRoutes = require('./routes/chat');
-const rfidRoutes = require('./routes/rfid');
+const rfidRoutes = require('./models/Rfid');
 
 // ============================================================
 //  CONFIGURATION
@@ -320,7 +318,7 @@ const liveData = {
 
 const fallbackState = new Map();
 let lastPredAlertTs = 0;
-let wss = null; // initialized in start()
+let wss = null;
 
 // ============================================================
 //  NOTIFICATION PUSH FCM
@@ -457,7 +455,6 @@ async function saveAlert(sensor, niveau, message, source = 'mesure', valeur = nu
     const icon = niveau === 'DANGER' ? '🚨' : niveau === 'WARNING' ? '⚠️' : 'ℹ️';
     log('WARN', `${icon} ALERT [${niveau}][${sensor}] ${message}`);
 
-    // WebSocket broadcast
     wsBroadcast({
       type: 'alert',
       alert: {
@@ -475,7 +472,6 @@ async function saveAlert(sensor, niveau, message, source = 'mesure', valeur = nu
       },
     });
 
-    // ENVOI DE LA NOTIFICATION PUSH
     if (global.fcmToken) {
       await sendPushNotification(global.fcmToken, `Alerte ${niveau}`, message, { sensor });
     }
@@ -1351,6 +1347,20 @@ app.post('/access', async (req, res) => {
     return null;
   });
 
+  // ✅ DIFFUSION WEBSOCKET POUR LES ACCÈS (AJOUT)
+  const accessGranted = ['DOUBLE_AUTORISÉ', 'AUTORISÉ', 'AUTORISÉ_FALLBACK'].includes(decision);
+  wsBroadcast({
+    type: 'access',
+    access: {
+      uid: uid,
+      decision: decision,
+      name: faceName || null,
+      authorized: accessGranted,
+      fallback: usedFallback,
+      timestamp: new Date().toISOString(),
+    }
+  });
+
   if (photoBuffer && accessDoc) {
     try {
       await AccessPhoto.create({
@@ -1923,6 +1933,6 @@ async function start() {
 }
 
 start().catch((err) => {
-  log('ERROR', `Démarrage : ${err.message}`);
+  log('ERROR ', `Démarrage : ${err.message}`);
   process.exit(1);
 });
