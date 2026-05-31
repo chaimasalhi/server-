@@ -4,11 +4,6 @@
 //  IoT Backend — Salle Réseau v12.1 + FCM Push Notifications
 // ============================================================
 
-// ───────────────────────────────────────────────────────────
-//  Firebase Admin (pour les notifications push)
-//  Utilise la variable d'environnement FIREBASE_SERVICE_ACCOUNT
-//  ou un fichier local en développement
-// ───────────────────────────────────────────────────────────
 const admin = require('firebase-admin');
 let serviceAccount;
 
@@ -1386,7 +1381,6 @@ app.post('/access', async (req, res) => {
     REFUSÉ_RFID: '❌',
     REFUSÉ_FALLBACK: '⛔',
   };
-  const accessGranted = ['DOUBLE_AUTORISÉ', 'AUTORISÉ', 'AUTORISÉ_FALLBACK'].includes(decision);
   log('INFO', `${icons[decision] || '❌'} [${uid}] → ${decision} | Visage: ${faceResult} | Photo: ${photoBuffer ? 'oui' : 'non'}`);
   res.json({
     status: 'ok',
